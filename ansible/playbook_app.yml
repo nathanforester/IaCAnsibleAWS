@@ -1,0 +1,120 @@
+# AWS playbook
+---
+- hosts: localhost
+  connection: local
+  gather_facts: False
+  become: true 
+  ignore_errors: yes
+  vars:
+  #   key_name: Eng57.Nathan.F.sshAWSNodeJSKey
+  #   region: eu-west-1
+  #   image: ami-089cc16f7f08c4457 # https://cloud-images.ubuntu.com/locator/ec2/
+  #   sec_group: sg-0f468d2df8732d8e3
+  # tasks:
+
+  #   - name: Facts
+  #     block:
+  #     - name: Get instances facts
+  #       ec2_instance_info:
+  #         aws_access_key: "{{ec2_access_key}}"
+  #         aws_secret_key: "{{ec2_secret_key}}"
+  #         region: "{{ region }}"
+  #       register: result
+  #     - name: Instances ID
+  #       debug:
+  #         msg: "ID: {{ item.instance_id }} - State: {{ item.state.name }} - Public DNS: {{ item.public_dns_name }}"
+  #       loop: "{{ result.instances }}"
+  #     tags: always
+
+  #   - name: Provisioning EC2 instances
+  #     block:
+  #     - name: Provision instance(s)
+  #       ec2:
+  #         aws_access_key: "{{ec2_access_key}}"
+  #         aws_secret_key: "{{ec2_secret_key}}"
+  #         key_name: "{{ key_name }}"
+  #         id: "{{ id }}"
+  #         group_id: sg-0f468d2df8732d8e3
+  #         image: "{{ image }}"
+  #         instance_type: t2.micro
+  #         region: "{{ region }}"
+  #         wait: true
+  #         count: 1
+  #         # exact_count: 2
+  #         # count_tag:
+  #         #   Name: App
+  #         instance_tags:
+  #           Name: Nathan2-WebApp-Ansible
+
+      - name: Install git
+        apt: name=git
+
+      - name: Curl Node Source
+        shell: curl -sL https://deb.nodesource.com/setup_12.x | sudo -E bash -
+ - name: Install Python
+        apt: pkg=python state=present
+
+      - name: Install Node.js
+        apt: pkg=nodejs state=present
+
+      - name: install NPM
+        shell: npm install
+        args:
+          chdir: /home/ubuntu
+
+      - name: Install PM2
+        npm:
+          name: pm2
+          global: yes
+
+      - name: Install Nginx
+        apt: pkg=nginx state=present
+
+      - name: Remove nginx default files - sites available
+        shell: rm /etc/nginx/sites-available/default.conf 
+
+      - name: Remove nginx default files - sites enabled
+        shell: rm /etc/nginx/sites-enabled/default
+
+      - name: Copy nginx default file
+        shell: cp /home/ubuntu/web-app/nginx.conf /etc/nginx/sites-available/default.conf # look at directories and file names
+
+      - name: Symlink from sites available to sites enabled
+        shell: ln -s /etc/nginx/sites-available/default.conf /etc/nginx/sites-enabled/default.conf
+
+      - name: Restart nginx
+        shell: service nginx restart
+
+      - name: export db host variable for database
+        shell: echo "DB_HOST=mongodb://192.168.0.20:27017/posts" >> ~/.bashrc
+
+      - name: Stop pm2
+        shell: pm2 stop all
+        args:
+          chdir: /home/ubuntu/web-app/
+          ignore_errors: yes
+
+      - name: Install Forever
+        npm:
+          name: forever
+          global: yes
+
+      - name: NODE | Seed Posts
+        shell: node seed.js
+        args: 
+          chdir: /home/ubuntu/web-app/seeds
+    - name: Install npm updates
+        shell: npm install
+        args:
+          chdir: /home/ubuntu/web-app
+
+      - name: start app -shell
+        shell:
+          cmd: . ~/.bashrc && forever start app.js
+          chdir: /home/ubuntu/web-app
+
+      - name: node seeds -shell
+        shell:
+          cmd: . ~/.bashrc && node seed.js
+          chdir: /home/ubuntu/web-app/seeds
+      tags: always

@@ -1,0 +1,48 @@
+# AWS playbook
+---
+- hosts: localhost
+  connection: local
+  gather_facts: yes
+  ignore_errors: yes
+  vars:
+    key_name: NATHAN.F.KEY.PAIR
+    region: eu-west-1
+    image: ami-089cc16f7f08c4457 # https://cloud-images.ubuntu.com/locator/ec2/
+    id: "NathanDEMOB-web-app-Ansible"
+    sec_group: sg-0f468d2df8732d8e3
+  tasks:
+
+    - name: Facts
+      block:
+      - name: Get instances facts
+        ec2_instance_info:
+          aws_access_key: "{{ec2_access_key}}"
+          aws_secret_key: "{{ec2_secret_key}}"
+          region: "{{ region }}"
+        register: result
+      - name: Instances ID
+        debug:
+          msg: "ID: {{ item.instance_id }} - State: {{ item.state.name }} - Publ                                                                                                                ic DNS: {{ item.public_dns_name }}"
+        loop: "{{ result.instances }}"
+      tags: always
+
+    - name: Provisioning EC2 instances
+      block:
+      - name: Provision instance(s)
+        ec2:
+          aws_access_key: "{{ec2_access_key}}"
+          aws_secret_key: "{{ec2_secret_key}}"
+          key_name: "{{ key_name }}"
+          id: "{{ id }}"
+          group_id: sg-0f468d2df8732d8e3
+          image: "{{ image }}"
+          instance_type: t2.micro
+          region: "{{ region }}"
+          wait: true
+          count: 1
+          # exact_count: 2
+          # count_tag:
+          #   Name: App
+          instance_tags:
+            Name: Eng.57.NathanFinal-WebApp-Ansible
+
